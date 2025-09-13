@@ -106,6 +106,17 @@ export async function authApiKey(req: Request, res: Response, next: NextFunction
         throw new AuthenticationError("Invalid API Key");
     }
 
+    // Reset usage count
+    const lastUsed = keyRecord.lastUsedAt
+    const now = new Date()
+    if (!lastUsed || lastUsed.toDateString() !== now.toDateString()) {
+        await prismaClient.apiKey.update({
+            where: {id: keyRecord.id},
+            data: {usageCount: 0}
+        })
+    }
+
+
     if (keyRecord.usageCount == keyRecord.rateLimit) {
         throw new RateLimitError("Reached rate limit for the day")
     }

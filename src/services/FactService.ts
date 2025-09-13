@@ -13,7 +13,7 @@ export class FactService {
                 skip: Math.floor(Math.random() * factsCount),
                 select: {fact: true, source: true}
             })
-
+            
             return fact as Fact
         } catch (error: any) {
             console.error('Failed to fetch random fact: ', error);
