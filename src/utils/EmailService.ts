@@ -1,4 +1,4 @@
-import { Resend } from "resend";
+import {Resend} from "resend";
 
 export class EmailService {
     private resend: Resend;
@@ -51,10 +51,61 @@ export class EmailService {
         }
     }
 
+    async sendNewApiKey(email: string, apiKey: string): Promise<void> {
+        try {
+            const result = await this.resend.emails.send({
+                from: "onboarding@resend.dev",
+                to: email,
+                subject: "🔑 Your New PenguinAPI Key",
+                html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #007cff;">Your New API Key</h2>
+                <p>You've generated a new API key for PenguinAPI. Keep it safe and secure:</p>
+
+                <div style="background: #f8f9fa; border: 2px solid #e9ecef; padding: 20px; 
+                            border-radius: 8px; margin: 20px 0;">
+                  <p style="margin: 0; font-family: monospace; font-size: 14px; 
+                            word-break: break-all; background: white; padding: 10px; 
+                            border-radius: 4px;">
+                    <strong>${apiKey}</strong>
+                  </p>
+                </div>
+
+                <p><strong>⚠️ Important:</strong> Treat this key like a password. Don’t share it or commit it to Git.</p>
+
+                <h3 style="margin-top: 30px; color: #343a40;">Quick Test</h3>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 4px; 
+                            border-left: 4px solid #007cff;">
+                  <code style="font-family: monospace; font-size: 12px; display: block;">
+                    curl -H "x-api-key: ${apiKey}" \\<br/>
+                    &nbsp;&nbsp;&nbsp;&nbsp; https://api.penguinapi.com/v1/facts
+                  </code>
+                </div>
+
+                <p style="margin-top: 30px;">
+                  Need help? Visit our 
+                  <a href="https://docs.penguinapi.com" style="color: #007cff;">docs</a> 
+                  or contact support.
+                </p>
+
+                <p style="margin-top: 30px;">
+                  Stay curious,<br/>
+                  <strong>The PenguinAPI Team 🐧</strong>
+                </p>
+              </div>
+            `,
+            });
+
+        } catch (error: any) {
+            console.error("Failed to send new key:", error);
+            console.error("Error details:", error.response?.data || error.message);
+            throw new Error(`Failed to send new key: ${error.message}`);
+        }
+    }
+
+
     async sendWelcomeEmail(email: string, apiKey: string): Promise<void> {
         try {
-            console.log(`Sending welcome email to: ${email}`);
-
             const result = await this.resend.emails.send({
                 // Use Resend's test domain or your verified domain
                 from: "onboarding@resend.dev", // Resend's test domain

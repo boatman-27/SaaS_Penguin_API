@@ -5,10 +5,11 @@ import bcrypt from "bcrypt";
 
 import {AuthenticationError, InternalServerError, RateLimitError, ValidationError} from "../types/Error.ts";
 import {PrismaClient} from "../generated/prisma"
+import type {CustomJwtPayload} from "../types/global";
 
 const prismaClient = new PrismaClient()
 
-export function auth(req: Request): jwt.JwtPayload {
+export function auth(req: Request): CustomJwtPayload {
     const authHeader = req.headers.authorization;
     if (!authHeader) {
         throw new AuthenticationError("Missing Authorization Header");
@@ -16,7 +17,6 @@ export function auth(req: Request): jwt.JwtPayload {
 
     const parts = authHeader.split(" ");
     if (parts.length !== 2 || parts[0] !== "Bearer") {
-        // This is VALIDATION - user sent malformed header format
         throw new ValidationError("Invalid Authorization Header format. Expected 'Bearer <token>'");
     }
 
@@ -31,13 +31,22 @@ export function auth(req: Request): jwt.JwtPayload {
     }
 
     try {
-        const decoded = jwt.verify(token, secret) as jwt.JwtPayload
+        const decoded = jwt.verify(token, secret) as jwt.JwtPayload & CustomJwtPayload;
 
+        // JWT library already handles expiration, but keeping explicit check for clarity
         if (decoded.exp && decoded.exp < Math.floor(Date.now() / 1000)) {
             throw new AuthenticationError("Token has expired");
         }
 
-        return decoded;
+        // Validate required fields
+        if (!decoded.userId) {
+            throw new AuthenticationError("Invalid token payload: missing userId");
+        }
+
+        return {
+            userId: decoded.userId,
+            claims: decoded
+        };
     } catch (err) {
         // Handle custom errors first (from our explicit checks above)
         if (err instanceof AuthenticationError || err instanceof ValidationError) {
@@ -56,21 +65,23 @@ export function auth(req: Request): jwt.JwtPayload {
     }
 }
 
-// export function requireAuth(req: Request, res: Response, next: NextFunction) {
-//     try {
-//         const claims = auth(req);
-//         if (!req.user) req.user = {userId: claims}
-//         next();
-//     } catch (err: any) {
-//         res.status(401).json({
-//             error:
-//                 err?.message ||
-//                 (typeof err === "string" && err) ||
-//                 JSON.stringify(err) ||
-//                 "Unknown error",
-//         });
-//     }
-// }
+export function requireAuth(req: Request, res: Response, next: NextFunction) {
+    try {
+        const claims = auth(req);
+        req.user = {
+            userId: claims.userId,
+            apiKey: "",
+            claims: claims.claims
+        };
+        next();
+    } catch (err: any) {
+        const statusCode = getErrorStatusCode(err);
+        res.status(statusCode).json({
+            error: err?.message || "Authentication failed",
+            type: err?.constructor?.name || "AuthenticationError"
+        });
+    }
+}
 
 export async function authApiKey(req: Request, res: Response, next: NextFunction) {
     const apiKey = req.headers["x-api-key"];
@@ -102,3 +113,32 @@ export async function authApiKey(req: Request, res: Response, next: NextFunction
     req.user = {userId: keyRecord.userId, apiKey: apiKey as string};
     next();
 }
+
+// Middleware to handle both auth methods
+export function flexibleAuth(req: Request, res: Response, next: NextFunction) {
+    // Check for API key first
+    if (req.headers["x-api-key"]) {
+        return authApiKey(req, res, next);
+    }
+
+    // Fall back to JWT
+    if (req.headers.authorization) {
+        return requireAuth(req, res, next);
+    }
+
+    // No auth method provided
+    res.status(401).json({
+        error: "Authentication required. Provide either 'Authorization: Bearer <token>' or 'x-api-key' header.",
+        type: "AuthenticationError"
+    });
+}
+
+// Helper function to map error types to HTTP status codes
+function getErrorStatusCode(err: any): number {
+    if (err instanceof ValidationError) return 400;
+    if (err instanceof AuthenticationError) return 401;
+    if (err instanceof RateLimitError) return 429;
+    if (err instanceof InternalServerError) return 500;
+    return 500; // Default to 500 for unknown errors
+}
+

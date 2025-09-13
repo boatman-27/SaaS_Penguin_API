@@ -2,7 +2,7 @@ import type {Request, Response} from "express";
 
 import type {UserService} from "../services/UserService.ts";
 import type {Credentials, NewUser} from "../types/User.ts";
-import {AuthenticationError, DatabaseError, ValidationError} from "../types/Error.ts";
+import {AuthenticationError, ConflictError, DatabaseError, ValidationError} from "../types/Error.ts";
 import type {TierInfo} from "../types/API.ts"
 
 
@@ -11,6 +11,130 @@ export class UserController {
 
     constructor(userService: UserService) {
         this.userService = userService;
+    }
+
+    async renameKey(req: Request, res: Response): Promise<void> {
+        try {
+            const apiKey = req.user?.apiKey as string;
+            const userId = req.user?.userId as string;
+            const {name} = req.body
+
+            if (!name) {
+                throw new ValidationError('name is required');
+            }
+
+            await this.userService.renameKey(name, apiKey, userId);
+
+            res.status(201).json({
+                success: true,
+                message: `Key renamed successfully.`,
+            })
+        } catch (error: any) {
+            if (error instanceof ValidationError) {
+                res.status(400).json({
+                    success: false,
+                    message: error.message
+                });
+            } else if (error instanceof ConflictError) {
+                res.status(409).json({
+                    success: false,
+                    message: error.message
+                })
+            } else if (error instanceof DatabaseError) {
+                res.status(500).json({
+                    success: false,
+                    message: 'Internal server error'
+                });
+
+            } else if (error instanceof AuthenticationError) {
+                res.status(401).json({
+                    success: false,
+                    message: error.message
+                })
+            } else {
+                res.status(500).json({
+                    success: false,
+                    message: 'An unexpected error occurred'
+                });
+            }
+        }
+    }
+
+    async deleteApiKey(req: Request, res: Response): Promise<void> {
+        try {
+            const apiKey = req.user?.apiKey as string;
+            const userId = req.user?.userId as string;
+            await this.userService.deleteApiKey(apiKey, userId)
+
+            res.status(200).json({
+                sucess: true,
+                message: `Key deleted successfully.`,
+            })
+
+        } catch (error: any) {
+            if (error instanceof ValidationError) {
+                res.status(400).json({
+                    success: false,
+                    message: error.message
+                });
+            } else if (error instanceof ConflictError) {
+                res.status(409).json({
+                    success: false,
+                    message: error.message
+                })
+            } else if (error instanceof DatabaseError) {
+                res.status(500).json({
+                    success: false,
+                    message: 'Internal server error'
+                });
+
+            } else {
+                res.status(500).json({
+                    success: false,
+                    message: 'An unexpected error occurred'
+                });
+            }
+        }
+    }
+
+    async generateApiKey(req: Request, res: Response): Promise<void> {
+        try {
+            const userId = req.user?.userId as string;
+            const {name} = req.body
+
+            if (!name) {
+                throw new ValidationError('name is required');
+            }
+            await this.userService.generateNewKey(userId, name)
+
+            res.status(201).json({
+                success: true,
+                message: `Key generated successfully.`,
+            })
+        } catch (error: any) {
+            if (error instanceof ValidationError) {
+                res.status(400).json({
+                    success: false,
+                    message: error.message
+                });
+            } else if (error instanceof ConflictError) {
+                res.status(409).json({
+                    success: false,
+                    message: error.message
+                })
+            } else if (error instanceof DatabaseError) {
+                res.status(500).json({
+                    success: false,
+                    message: 'Internal server error'
+                });
+
+            } else {
+                res.status(500).json({
+                    success: false,
+                    message: 'An unexpected error occurred'
+                });
+            }
+        }
     }
 
     async login(req: Request, res: Response): Promise<void> {

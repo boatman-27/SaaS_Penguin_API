@@ -41,12 +41,13 @@ export class FactController {
                 throw new ValidationError("must include a word or a sentence");
             }
 
-            const fact: Fact = await this.factService.queryFact(includedWord)
+            const facts: Fact[] = await this.factService.queryFact(includedWord)
             statusCode = 200
             res.status(200).json({
                 success: true,
-                fact
+                facts
             })
+
         } catch (error: any) {
             statusCode = await this.handleError(res, error)
         } finally {

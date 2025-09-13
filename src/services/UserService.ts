@@ -14,6 +14,113 @@ import type {TierInfo} from "../types/API.ts";
 export class UserService {
     private static prisma = new PrismaClient()
 
+    async renameKey(newName: string, apiKey: string, userId: string): Promise<void> {
+        await this.validateName(newName, userId)
+
+        const lookupHash = crypto.createHash("sha256").update(apiKey).digest("hex");
+        try {
+            const updatedKey = await UserService.prisma.apiKey.updateMany({
+                data: {
+                    name: newName.trim()
+                },
+                where: {
+                    keyLookup: lookupHash,
+                    userId: userId
+                }
+            });
+
+            // Check if the API key was actually found and updated
+            if (updatedKey.count === 0) {
+                throw new ValidationError("API key not found or does not belong to user");
+            }
+
+        } catch (error: any) {
+            console.error("API key rename error:", error);
+
+            if (error instanceof ConflictError || error instanceof ValidationError) {
+                throw error;
+            }
+
+            // Handle specific Prisma errors
+            if (error.code === 'P2002') { // Unique constraint violation
+                throw new ConflictError("An API key with this name already exists");
+            }
+
+            throw new DatabaseError("Failed to rename API key.")
+        }
+
+    }
+
+    async deleteApiKey(apiKey: string, userId: string): Promise<void> {
+        const lookupHash = crypto.createHash("sha256").update(apiKey).digest("hex");
+
+        try {
+            await UserService.prisma.$transaction(async (tx) => {
+                const keyCount = await tx.apiKey.count({
+                    where: {userId: userId}
+                });
+
+                if (keyCount <= 1) {
+                    throw new ConflictError("Cannot delete the last API key. You must have at least one key.");
+                }
+
+                const deletedKey = await tx.apiKey.deleteMany({
+                    where: {
+                        userId: userId,
+                        keyLookup: lookupHash
+                    }
+                });
+
+                if (deletedKey.count === 0) {
+                    throw new ValidationError("API key not found or does not belong to user");
+                }
+            });
+
+        } catch (error: any) {
+            if (error instanceof ConflictError || error instanceof ValidationError) {
+                throw error;
+            }
+
+            console.error("Deletion error:", error);
+            throw new DatabaseError("Failed to delete API key");
+        }
+    }
+
+    async generateNewKey(userId: string, name: string): Promise<void> {
+
+        await this.validateName(name, userId);
+        const {apiKey, hashed: hashedApiKey, lookupHash} = await this.generateApiKey("live");
+        try {
+            await UserService.prisma.apiKey.create({
+                data: {
+                    userId,
+                    name: name.trim(),
+                    keyLookup: lookupHash,
+                    keyHash: hashedApiKey
+                }
+            });
+
+            try {
+                const user = await UserService.prisma.users.findUnique({
+                    where: {userId}
+                })
+                const emailService = new EmailService();
+                await emailService.sendNewApiKey(user!.email, apiKey)
+            } catch (error) {
+                console.error("new key email failed:", error);
+            }
+
+        } catch (error: any) {
+            console.error("API key creation error:", error);
+
+            if (error instanceof ConflictError || error instanceof ValidationError) {
+                throw error;
+            }
+
+            throw new DatabaseError("Failed to generate new API key");
+        }
+    }
+
     async login(creds: Credentials): Promise<[SanitizedUser, string, string]> {
         this.validateLoginInput(creds);
 
@@ -121,11 +228,10 @@ export class UserService {
         }
     }
 
-    private getPrismaClient() {
-        if (!UserService.prisma) {
-            UserService.prisma = new PrismaClient();
-        }
-        return UserService.prisma;
+    async countKeys(userId: string): Promise<number> {
+        return UserService.prisma.apiKey.count({
+            where: {userId: userId},
+        });
     }
 
     private validateLoginInput(creds: Credentials) {
@@ -197,6 +303,27 @@ export class UserService {
         }
     }
 
+    private async validateName(name: string, userId: string): Promise<void> {
+        if (!name?.trim()) {
+            throw new ValidationError("API key name is required");
+        }
+
+        if (name.trim().length > 100) {
+            throw new ValidationError("API key name is too long");
+        }
+
+        const existingKey = await UserService.prisma.apiKey.findFirst({
+            where: {
+                userId,
+                name: name.trim()
+            }
+        });
+
+        if (existingKey) {
+            throw new ConflictError("An API key with this name already exists");
+        }
+    }
+
     private async generateApiKey(env: "live" | "test" = "live") {
         const raw = crypto.randomBytes(32).toString("hex");
         const apiKey = `penguin_${env}_sk_${raw}`;
@@ -208,5 +335,4 @@ export class UserService {
 
         return {apiKey, hashed, lookupHash};
     }
-
 }
