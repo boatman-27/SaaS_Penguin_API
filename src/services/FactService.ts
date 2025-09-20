@@ -6,14 +6,14 @@ import type {Fact} from "../types/API.ts";
 export class FactService {
     private static prisma = new PrismaClient()
 
-    async randomFact(): Promise<Fact> {
+    async getRandomFact(): Promise<Fact> {
         const factsCount = await this.checkEmptyDb()
         try {
             const fact = await FactService.prisma.facts.findFirst({
                 skip: Math.floor(Math.random() * factsCount),
                 select: {fact: true, source: true}
             })
-            
+
             return fact as Fact
         } catch (error: any) {
             console.error('Failed to fetch random fact: ', error);
@@ -21,7 +21,7 @@ export class FactService {
         }
     }
 
-    async queryFact(includedWord: string): Promise<Fact[]> {
+    async getQueryFact(includedWord: string): Promise<Fact[]> {
         await this.checkEmptyDb()
         try {
             const facts = await FactService.prisma.facts.findMany({
@@ -45,7 +45,7 @@ export class FactService {
 
     }
 
-    async factById(id: number): Promise<Fact> {
+    async getFactById(id: number): Promise<Fact> {
         const factsCount = await this.checkEmptyDb()
         try {
             const fact = await FactService.prisma.facts.findFirst({
@@ -85,7 +85,7 @@ export class FactService {
         }
     }
 
-    async sampleFacts(): Promise<Fact[]> {
+    async getSampleFacts(): Promise<Fact[]> {
         const factsCount = await this.checkEmptyDb()
 
         // Ensure we don't skip too far to get exactly 3 facts

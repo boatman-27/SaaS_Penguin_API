@@ -5,6 +5,7 @@ import helmet from "helmet";
 import authRouter from "./src/routes/User.ts"
 import apiRouter from "./src/routes/Api.ts";
 import factRouter from "./src/routes/Facts.ts"
+import speciesRouter from "./src/routes/Species.ts";
 import {authApiKey} from "./src/middleware/Auth.ts";
 
 const app: Express = express();
@@ -25,6 +26,7 @@ app.get("/", (req, res) => {
 app.use("/auth", authRouter)
 app.use("/api", apiRouter)
 app.use("/fact", authApiKey, factRouter)
+app.use("/species", authApiKey, speciesRouter)
 
 
 app.listen(port, () => {
