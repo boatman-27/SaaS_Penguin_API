@@ -4,7 +4,7 @@ import crypto from "crypto";
 import bcrypt from "bcrypt";
 
 import {AuthenticationError, InternalServerError, RateLimitError, ValidationError,} from "../types/Error.js";
-import {PrismaClient} from "../generated/prisma/index.js";
+import {PrismaClient} from "../generated/prisma/index.js"
 import type {CustomJwtPayload} from "../types/global.js";
 
 const prismaClient = new PrismaClient();
