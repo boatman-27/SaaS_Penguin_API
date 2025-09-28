@@ -1,10 +1,10 @@
 import type {Request, Response} from "express";
 
-import type {FactService} from "../services/FactService.ts";
-import {DatabaseError, ValidationError} from "../types/Error.ts";
-import type {Fact} from "../types/API.ts";
-import {PrismaClient} from "../generated/prisma"
-import {UsageLogger} from "../utils/UsageService.ts";
+import type {FactService} from "../services/FactService.js";
+import {DatabaseError, ValidationError} from "../types/Error.js";
+import type {Fact} from "../types/API.js";
+import {PrismaClient} from "../generated/prisma/index.js"
+import {UsageLogger} from "../utils/UsageService.js";
 
 export class FactController {
 

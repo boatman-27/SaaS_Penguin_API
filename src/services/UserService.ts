@@ -1,4 +1,4 @@
-import {PrismaClient} from "../generated/prisma";
+import {PrismaClient} from "../generated/prisma/index.js";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import {v4 as uuidv4} from "uuid";

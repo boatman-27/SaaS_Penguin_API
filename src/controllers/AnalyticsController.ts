@@ -1,6 +1,6 @@
 import type {Request, Response} from "express";
-import type {AnalyticsService} from "../services/AnalyticsService.ts";
-import {DatabaseError, InternalServerError, NotFoundError, ValidationError} from "../types/Error.ts";
+import type {AnalyticsService} from "../services/AnalyticsService.js";
+import {DatabaseError, InternalServerError, NotFoundError, ValidationError} from "../types/Error.js";
 
 export class AnalyticsController {
     private analyticsService: AnalyticsService

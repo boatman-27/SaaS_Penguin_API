@@ -1,9 +1,9 @@
 import type {Request, Response} from "express";
 
-import type {UserService} from "../services/UserService.ts";
-import type {Credentials, NewUser} from "../types/User.ts";
-import {AuthenticationError, ConflictError, DatabaseError, NotFoundError, ValidationError,} from "../types/Error.ts";
-import type {TierInfo} from "../types/API.ts";
+import type {UserService} from "../services/UserService.js";
+import type {Credentials, NewUser} from "../types/User.js";
+import {AuthenticationError, ConflictError, DatabaseError, NotFoundError, ValidationError,} from "../types/Error.js";
+import type {TierInfo} from "../types/API.js";
 
 export class UserController {
     private userService: UserService;

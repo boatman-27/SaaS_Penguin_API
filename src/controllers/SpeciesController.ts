@@ -1,8 +1,8 @@
-import type {SpeciesService} from "../services/SpeciesService.ts";
+import type {SpeciesService} from "../services/SpeciesService.js";
 import type {Request, Response} from "express";
-import {UsageLogger} from "../utils/UsageService.ts";
-import {DatabaseError, ValidationError} from "../types/Error.ts";
-import type {Species, SpeciesFilters, SpeciesSummary} from "../types/API.ts";
+import {UsageLogger} from "../utils/UsageService.js";
+import {DatabaseError, ValidationError} from "../types/Error.js";
+import type {Species, SpeciesFilters, SpeciesSummary} from "../types/API.js";
 
 export class SpeciesController {
     private speciesService: SpeciesService;

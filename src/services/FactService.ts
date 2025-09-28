@@ -1,4 +1,4 @@
-import {PrismaClient} from "../generated/prisma"
+import {PrismaClient} from "../generated/prisma/index.js"
 import {DatabaseError, NotFoundError} from "../types/Error.ts";
 import type {Fact} from "../types/API.ts";
 

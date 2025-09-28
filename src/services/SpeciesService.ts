@@ -1,4 +1,4 @@
-import {PrismaClient} from "../generated/prisma"
+import {PrismaClient} from "../generated/prisma/index.js"
 import {DatabaseError} from "../types/Error.ts";
 import type {Species, SpeciesFilters, SpeciesSummary} from "../types/API.ts";
 
