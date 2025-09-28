@@ -1,0 +1,228 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Users {
+  userId         String           @id @default(uuid()) @map("user_id")
+  email          String           @unique
+  passwordHash   String           @map("password_hash")
+  firstName      String           @map("first_name")
+  lastName       String           @map("last_name")
+  company        String?
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+  ApiKey         ApiKey[]
+  ApiUsage       ApiUsage[]
+  passwordResets PasswordResets[]
+
+  @@map("users") // maps model to exact table name in DB
+}
+
+model PasswordResets {
+  id        String    @id @default(cuid())
+  userId    String
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user Users @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@map("password_resets")
+}
+
+model ApiKey {
+  id        String @id @default(uuid()) @map("id")
+  userId    String @map("user_id")
+  keyHash   String @unique @map("key_hash")
+  keyLookup String @unique @map("key_lookup")
+  name      String @map("name")
+
+  lastUsedAt DateTime? @map("last_used_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  rateLimit  Int @default(1000)
+  usageCount Int @default(0)
+
+  isActive Boolean @default(true) @map("is_active")
+
+  user Users @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@map("api_key") // Table name in DB
+}
+
+model PricingTier {
+  id             String   @id @default(uuid())
+  name           String   @unique // e.g. "FREE", "BASIC", "PRO"
+  price          Float
+  requestsPerDay Int
+  features       Json // store features as a JSON array
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("pricing_tier")
+}
+
+// Species Tables
+model Species {
+  id             String @id @default(uuid())
+  commonName     String @unique @map("common_name") // "Adelie Penguin"
+  scientificName String @unique @map("scientific_name") // "Pygoscelis adeliae"
+  species        String // "adeliae"
+
+  // Physical characteristics
+  weightMale   Float? @map("weight_male") // 5.4 kg
+  weightFemale Float? @map("weight_female") // 4.7 kg
+
+  // Basic info
+  nestType           String? @map("nest_type") // "in colonies in the open, use stones to line nest"
+  favouriteFood      String? @map("favourite_food") // "krill"
+  conservationStatus String? @map("conservation_status") // "Least Concern", "Endangered", etc.
+
+  // Descriptions
+  identification String? @db.Text // Physical description for identification
+  habits         String? @db.Text // Breeding, nesting habits
+
+  // Related data
+  distribution      Distribution[]
+  dietItems         DietItem[]
+  migrationPatterns Migration[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([conservationStatus]) // filter by conservation status
+  @@index([commonName]) // search by common name (already unique, but for sorting)
+  @@index([scientificName]) // search by scientific name
+  @@map("species")
+}
+
+//
+model Distribution {
+  id        String  @id @default(uuid())
+  speciesId String  @map("species_id")
+  species   Species @relation(fields: [speciesId], references: [id], onDelete: Cascade)
+
+  region             String // "Antarctic continent"
+  location           String // "South Shetland Islands"
+  breedingMonths     Json?   @map("breeding_months") // ["October", "November", "December", "January", "February"]
+  habitat            String? // "ice-free nesting habitats"
+  populationEstimate Int?    @map("population_estimate") // rough population numbers
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([region]) // filter by geographic region
+  @@index([location]) // filter by specific locations
+  @@index([speciesId, region]) // compound: species in specific regions
+  @@map("distribution")
+}
+
+//
+model DietItem {
+  id        String  @id @default(uuid())
+  speciesId String  @map("species_id")
+  species   Species @relation(fields: [speciesId], references: [id], onDelete: Cascade)
+
+  foodType       String  @map("food_type") // "krill", "fish", "amphipods"
+  scientificName String? @map("scientific_name") // "Euphausia superba"
+  commonName     String? @map("common_name") // "Antarctic Krill"
+  percentage     Float? // % of diet (if known)
+  seasonal       Boolean @default(false) // true if only eaten in certain seasons
+  location       String? // if diet varies by location
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([foodType]) // group by food types
+  @@index([speciesId, foodType]) // compound: what specific species eat
+  @@index([percentage]) // if you want to sort by diet percentage
+  @@map("diet_items")
+}
+
+//
+model Migration {
+  id        String  @id @default(uuid())
+  speciesId String  @map("species_id")
+  species   Species @relation(fields: [speciesId], references: [id], onDelete: Cascade)
+
+  migrationPeriod String  @map("migration_period") // "after breeding", "autumn"
+  fromLocation    String  @map("from_location") // "Ross Sea"
+  toLocation      String? @map("to_location") // "600 km north of Antarctic continent"
+  distanceKm      Int?    @map("distance_km") // 600
+  duration        String? // "Antarctic winter"
+  ageGroup        String? @map("age_group") // "juveniles", "adults", "all"
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([migrationPeriod]) // filter by when they migrate
+  @@index([fromLocation]) // filter by origin
+  @@index([toLocation]) // filter by destination
+  @@index([speciesId, migrationPeriod]) // compound: species migration timing
+  @@map("migrations")
+}
+
+//
+// model Image {
+//   id        String  @id @default(uuid())
+//   speciesId String
+//   species   Species @relation(fields: [speciesId], references: [id], onDelete: Cascade)
+//
+//   url       String
+//   altText   String?
+//   caption   String?
+//   imageType String // "profile", "habitat", "colony", "feeding"
+//   isMain    Boolean @default(false) // primary image for species
+//
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+//
+//   @@index([imageType]) // filter by image type
+//   @@index([isMain]) // quickly find main images
+//   @@index([speciesId, isMain]) // compound: main image for species
+//   @@index([speciesId, imageType]) // compound: specific image types per species
+//   @@map("images")
+// }
+
+// Facts Table
+model Facts {
+  id        Int      @id @default(autoincrement())
+  fact      String   @db.Text
+  source    String   @db.Text
+  createdAt DateTime @default(now()) @map("created-at")
+}
+
+model ApiUsage {
+  id     String @id @default(uuid())
+  userId String @map("user_id")
+  apiKey String @map("api_key") // Store the actual key
+
+  // Reference to user for easy querying
+  user Users @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  endpoint   String
+  method     String
+  ipAddress  String?  @map("ip_address")
+  statusCode Int      @map("status_code")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  // Easy to query user's usage across all their keys
+  @@index([userId, createdAt])
+  // Easy to query specific key usage
+  @@index([apiKey, createdAt])
+  @@map("api_usage")
+}
