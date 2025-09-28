@@ -3,12 +3,12 @@ import morgan from "morgan";
 import cors from "cors";
 import helmet from "helmet";
 
-import authRouter from "./src/routes/User.ts";
-import apiRouter from "./src/routes/Api.ts";
-import factRouter from "./src/routes/Facts.ts";
-import speciesRouter from "./src/routes/Species.ts";
-import analyticsRouter from "./src/routes/Analytics.ts";
-import {authApiKey} from "./src/middleware/Auth.ts";
+import authRouter from "./src/routes/User";
+import apiRouter from "./src/routes/Api";
+import factRouter from "./src/routes/Facts";
+import speciesRouter from "./src/routes/Species";
+import analyticsRouter from "./src/routes/Analytics";
+import {authApiKey} from "./src/middleware/Auth";
 
 const app: Express = express();
 
