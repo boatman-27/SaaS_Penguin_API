@@ -2,11 +2,13 @@ import {Resend} from "resend";
 
 export class EmailService {
     private resend: Resend;
-    private fromEmail: string;
+    private readonly fromEmail: string;
+    private readonly backendUrl: string;
 
     constructor() {
         const apiKey = process.env.RESEND_API_KEY;
         const fromEmail = process.env.EMAIL
+        const backendUrl = process.env.BACKEND_URL
 
         if (!apiKey) {
             throw new Error("RESEND_API_KEY environment variable is required");
@@ -16,9 +18,14 @@ export class EmailService {
             throw new Error("EMAIL environment variable is required");
         }
 
+        if (!backendUrl) {
+            throw new Error("BACKEND_URL environment variable is required");
+        }
+
         console.log("Initializing Resend with API key length:", apiKey.length);
         this.resend = new Resend(apiKey);
         this.fromEmail = fromEmail;
+        this.backendUrl = backendUrl;
     }
 
     async sendVerificationEmail(email: string, token: string): Promise<void> {
@@ -98,13 +105,13 @@ export class EmailService {
 
                 <p style="margin-top: 30px;">
                   Stay secure,<br/>
-                  <strong>The PenguinAPI Team 🐧</strong>
+                  <strong>The Boatmen team 🐧</strong>
                 </p>
 
                 <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
                 <p style="color: #999; font-size: 12px; text-align: center;">
                   If you didn't request this password reset, please ignore this email or 
-                  <a href="mailto:support@penguinapi.com" style="color: #007cff;">contact support</a> 
+                  <a href="mailto:${this.fromEmail}" style="color: #007cff;">contact support</a> 
                   if you have concerns.
                 </p>
               </div>
@@ -147,19 +154,19 @@ export class EmailService {
                             border-left: 4px solid #007cff;">
                   <code style="font-family: monospace; font-size: 12px; display: block;">
                     curl -H "x-api-key: ${apiKey}" \\<br/>
-                    &nbsp;&nbsp;&nbsp;&nbsp; https://api.penguinapi.com/v1/facts
+                    &nbsp;&nbsp;&nbsp;&nbsp; ${this.backendUrl}/api/v1/fact/?id=4
                   </code>
                 </div>
 
                 <p style="margin-top: 30px;">
                   Need help? Visit our 
-                  <a href="https://docs.penguinapi.com" style="color: #007cff;">docs</a> 
+                  <a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/docs" style="color: #007cff;">docs</a> 
                   or contact support.
                 </p>
 
                 <p style="margin-top: 30px;">
                   Stay curious,<br/>
-                  <strong>The PenguinAPI Team 🐧</strong>
+                  <strong>The Boatmen Team 🐧</strong>
                 </p>
               </div>
             `,
@@ -171,7 +178,6 @@ export class EmailService {
             throw new Error(`Failed to send new key: ${error.message}`);
         }
     }
-
 
     async sendWelcomeEmail(email: string, apiKey: string): Promise<void> {
         try {
@@ -200,19 +206,19 @@ export class EmailService {
                                 border-left: 4px solid #007cff;">
                       <code style="font-family: monospace; font-size: 12px; display: block;">
                         curl -H "x-api-key: ${apiKey}" \\<br/>
-                        &nbsp;&nbsp;&nbsp;&nbsp; https://api.penguinapi.com/api/v1/fact/:1
+                        &nbsp;&nbsp;&nbsp;&nbsp; ${this.backendUrl}/api/v1/fact/random
                       </code>
                     </div>
 
                     <p style="margin-top: 30px;">
                       Need help? Check out our 
-                      <a href="https://docs.penguinapi.com" style="color: #007cff;">documentation</a> 
+                      <a href="https://penguins.boatmans.org/docs" style="color: #007cff;">documentation</a> 
                       or reply to this email.
                     </p>
 
                     <p style="margin-top: 30px;">
                       Happy hacking,<br/>
-                      <strong>The PenguinAPI Team 🐧</strong>
+                      <strong>The Boatmen Team 🐧</strong>
                     </p>
                   </div>
                 `,
@@ -226,6 +232,5 @@ export class EmailService {
             throw new Error(`Failed to send welcome email: ${error.message}`);
         }
     }
-
 
 }
