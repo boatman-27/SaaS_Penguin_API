@@ -63,8 +63,8 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
     });
 });
 
-// 404 handler
-app.use('*', (req, res) => {
+// 404 handler - FIXED: removed the '*' path parameter
+app.use((req, res) => {
     res.status(404).json({
         success: false,
         error: {
@@ -82,6 +82,5 @@ if (process.env.NODE_ENV !== 'production') {
         console.log(`Listening on port ${port}`);
     });
 }
-
 
 export default app;
