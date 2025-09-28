@@ -1,4 +1,4 @@
-import {PrismaClient} from "../generated/prisma/index.js";
+import {PrismaClient} from "../generated/prisma/index.js"
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import {v4 as uuidv4} from "uuid";
@@ -17,6 +17,8 @@ import {comparePasswords, hashPassword} from "../utils/Password.js";
 import {generateAccessToken, generateRefreshToken} from "../utils/Tokens.js";
 import {EmailService} from "../utils/EmailService.js";
 import type {ApiKey, TierInfo} from "../types/API.js";
+
+;
 
 export class UserService {
     private static prisma = new PrismaClient();
