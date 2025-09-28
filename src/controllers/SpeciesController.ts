@@ -97,6 +97,7 @@ export class SpeciesController {
             }
 
             const speciesInfo: Species[] | null = await this.speciesService.getSpeciesByBreedingMonth(month);
+            statusCode = 200
             res.status(200).json({
                 success: true,
                 data: speciesInfo
@@ -120,6 +121,7 @@ export class SpeciesController {
             }
 
             const speciesInfo: Species[] | null = await this.speciesService.getSpeciesByDiet(diet)
+            statusCode = 200
             res.status(200).json({
                 success: true,
                 data: speciesInfo
@@ -148,6 +150,7 @@ export class SpeciesController {
             }
             const speciesInfo: Species[] | null = await this.speciesService.getSpeciesBySeasonalDiet(bool)
 
+            statusCode = 200
             res.status(200).json({
                 success: true,
                 data: speciesInfo
@@ -172,6 +175,8 @@ export class SpeciesController {
             }
 
             const speciesInfo: Species[] | null = await this.speciesService.getSpeciesByRegion(region)
+
+            statusCode = 200
             res.status(200).json({
                 success: true,
                 data: speciesInfo
@@ -194,6 +199,8 @@ export class SpeciesController {
                 throw new ValidationError("must include a status");
             }
             const speciesInfo: Species[] | null = await this.speciesService.getSpeciesByStatus(status)
+
+            statusCode = 200
             res.status(200).json({
                 success: true,
                 data: speciesInfo
@@ -224,6 +231,8 @@ export class SpeciesController {
             }
 
             const speciesInfo: Species[] | null = await this.speciesService.getSpeciesByMinWeight(weight)
+
+            statusCode = 200
             res.status(200).json({
                 success: true,
                 data: speciesInfo
@@ -269,8 +278,8 @@ export class SpeciesController {
     async getSpeciesByWeightRange(req: Request, res: Response): Promise<void> {
         let statusCode = 500
         try {
-            const minWeightStr = req.query.weight as string
-            const maxWeightStr = req.query.weight as string
+            const minWeightStr = req.query.minWeight as string
+            const maxWeightStr = req.query.maxWeight as string
 
             if (!minWeightStr || minWeightStr.trim() === "" || !maxWeightStr || maxWeightStr.trim() === "") {
                 throw new ValidationError("Minimum and Maximum Weight parameters are required");
@@ -311,7 +320,7 @@ export class SpeciesController {
     async getSpeciesByMinPopulation(req: Request, res: Response): Promise<void> {
         let statusCode = 500
         try {
-            const populationStr = req.query.weight as string
+            const populationStr = req.query.population as string
             if (!populationStr || populationStr.trim() === "") {
                 throw new ValidationError("Population parameter is required");
             }
@@ -340,7 +349,7 @@ export class SpeciesController {
     async getSpeciesByMaxPopulation(req: Request, res: Response): Promise<void> {
         let statusCode = 500
         try {
-            const populationStr = req.query.weight as string
+            const populationStr = req.query.population as string
             if (!populationStr || populationStr.trim() === "") {
                 throw new ValidationError("Population parameter is required");
             }
@@ -369,8 +378,8 @@ export class SpeciesController {
     async getSpeciesByPopulationRange(req: Request, res: Response): Promise<void> {
         let statusCode = 500
         try {
-            const minPopulationStr = req.query.weight as string
-            const maxPopulationStr = req.query.weight as string
+            const minPopulationStr = req.query.minPopulation as string
+            const maxPopulationStr = req.query.maxPopulation as string
 
             if (!minPopulationStr || minPopulationStr.trim() === "" || !maxPopulationStr || maxPopulationStr.trim() === "") {
                 throw new ValidationError("Minimum and Maximum Population parameters are required");
@@ -386,11 +395,13 @@ export class SpeciesController {
                 throw new ValidationError("Populations should be positive");
             }
 
-            if (minPopulation < maxPopulation) {
+            if (minPopulation > maxPopulation) {
                 throw new ValidationError("Maximum Population should be greater than minimum Population");
             }
 
             const speciesInfo: Species[] | null = await this.speciesService.getSpeciesByPopulationtRange(minPopulation, maxPopulation);
+
+            statusCode = 200
             res.status(200).json({
                 success: true,
                 data: speciesInfo
@@ -425,6 +436,7 @@ export class SpeciesController {
             // Call service
             const speciesInfo: SpeciesSummary[] = await this.speciesService.getSpeciesSummaries(filters);
 
+            statusCode = 200
             res.status(200).json({
                 success: true,
                 data: speciesInfo,
@@ -449,6 +461,8 @@ export class SpeciesController {
             }
 
             const speciesInfo: Species | null = await this.speciesService.getSpeciesInfo(searchTerm)
+
+            statusCode = 200
             res.status(200).json({
                 success: true,
                 data: speciesInfo

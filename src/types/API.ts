@@ -6,6 +6,20 @@ export interface TierInfo {
     features: string[];
     createdAt: Date;
     updatedAt: Date;
+
+}
+
+export interface ApiKey {
+    id: string;
+    userId: string;
+    keyHash: string;
+    keyLookup: string;
+    name: string;
+    lastUsedAt: Date | null;
+    createdAt: Date;
+    rateLimit: number;
+    usageCount: number;
+    isActive: boolean;
 }
 
 export interface Fact {

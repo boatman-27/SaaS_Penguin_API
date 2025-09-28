@@ -60,31 +60,6 @@ export class FactService {
 
     }
 
-    async logUsage(
-        userId: string,
-        apiKey: string,
-        endpoint: string,
-        method: string,
-        statusCode: number,
-        ipAddress?: string,
-    ): Promise<void> {
-        try {
-            await FactService.prisma.apiUsage.create({
-                data: {
-                    userId,
-                    apiKey,
-                    endpoint,
-                    method,
-                    statusCode,
-                    ipAddress: ipAddress,
-                    createdAt: new Date()
-                }
-            });
-        } catch (error: any) {
-            console.error('Failed to log API usage:', error);
-        }
-    }
-
     async getSampleFacts(): Promise<Fact[]> {
         const factsCount = await this.checkEmptyDb()
 

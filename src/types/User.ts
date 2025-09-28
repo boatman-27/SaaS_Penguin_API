@@ -1,20 +1,27 @@
 export interface Credentials {
-    email: string;
-    password: string;
+  email: string;
+  password: string;
 }
 
 export interface SanitizedUser {
-    userId: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    company: string | null;
+  userId: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  company: string | null;
 }
 
 export interface NewUser {
-    email: string;
-    firstName: string;
-    lastName: string;
-    password: string;
-    company: string | null;
+  email: string;
+  firstName: string;
+  lastName: string;
+  password: string;
+  company: string | null;
+}
+
+export interface UpdateUserData {
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  company?: string;
 }

@@ -43,9 +43,12 @@ export class UsageLogger {
                 statusCode,
                 ip as string,
             )
+            console.log("in track usage");
 
             if (statusCode == 200) {
                 await this.updateApiKeyUsage(req.user?.apiKey as string)
+            } else {
+                console.log(`in track usage usage:`, statusCode)
             }
 
         } catch (error) {
@@ -56,6 +59,7 @@ export class UsageLogger {
     async updateApiKeyUsage(apiKey: string): Promise<void> {
         // SHA256 hash for DB lookup
         const lookupHash = crypto.createHash("sha256").update(apiKey as string).digest("hex");
+        console.log("Usage update api key:", apiKey);
 
         try {
             await UsageLogger.prisma.apiKey.update({
@@ -68,6 +72,7 @@ export class UsageLogger {
         } catch (error) {
             console.error('Failed to update API key usage:', error);
         } finally {
+            console.log("Update API key usage");
             await UsageLogger.prisma.$disconnect();
         }
     }

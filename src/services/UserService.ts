@@ -1,39 +1,236 @@
-import {PrismaClient} from "../generated/prisma"
+import {PrismaClient} from "../generated/prisma";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
-import {v4 as uuidv4} from "uuid"
+import {v4 as uuidv4} from "uuid";
 
-import {AuthenticationError, ConflictError, DatabaseError, ErrorFactory, ValidationError} from "../types/Error.ts";
-import type {Credentials, NewUser, SanitizedUser} from "../types/User.ts";
+import {
+    AuthenticationError,
+    ConflictError,
+    DatabaseError,
+    ErrorFactory,
+    InternalServerError,
+    NotFoundError,
+    ValidationError,
+} from "../types/Error.ts";
+import type {Credentials, NewUser, SanitizedUser, UpdateUserData,} from "../types/User.ts";
 import {comparePasswords, hashPassword} from "../utils/Password.ts";
 import {generateAccessToken, generateRefreshToken} from "../utils/Tokens.ts";
 import {EmailService} from "../utils/EmailService.ts";
-import type {TierInfo} from "../types/API.ts";
-
+import type {ApiKey, TierInfo} from "../types/API.ts";
 
 export class UserService {
-    private static prisma = new PrismaClient()
+    private static prisma = new PrismaClient();
 
-    async renameKey(newName: string, apiKey: string, userId: string): Promise<void> {
-        await this.validateName(newName, userId)
+    async initiatePasswordReset(email: string): Promise<void> {
+        try {
+            const user = await UserService.prisma.users.findFirst({
+                where: {email: email.toLowerCase()},
+            });
 
-        const lookupHash = crypto.createHash("sha256").update(apiKey).digest("hex");
+            if (!user) {
+                console.error(`Password reset attempted for non-existent email: ${email}`);
+                throw new NotFoundError();
+            }
+
+            const resetToken = crypto.randomBytes(32).toString('hex');
+            const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour from now
+
+            await UserService.prisma.passwordResets.create({
+                data: {
+                    userId: user.userId,
+                    token: resetToken,
+                    expiresAt: resetTokenExpiry,
+                    createdAt: new Date(),
+                },
+            });
+
+            const emailService = new EmailService();
+            await emailService.sendPasswordResetEmail(user.email, user.firstName, resetToken)
+
+        } catch (error: any) {
+            console.error("Database error in initiatePasswordReset:", error);
+            throw new DatabaseError("Failed to initiate password reset");
+        }
+    }
+
+    async resetPassword(token: string, newPassword: string): Promise<void> {
+        try {
+            const resetRecord = await UserService.prisma.passwordResets.findFirst({
+                where: {
+                    token,
+                    expiresAt: {gte: new Date()},
+                    usedAt: null,
+                },
+                include: {
+                    user: true,
+                },
+            });
+
+            if (!resetRecord) {
+                throw new NotFoundError("Invalid or expired reset token");
+            }
+
+            const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+            await UserService.prisma.$transaction([
+                UserService.prisma.users.update({
+                    where: {userId: resetRecord.userId},
+                    data: {
+                        passwordHash: hashedPassword,
+                        updatedAt: new Date(),
+                    },
+                }),
+                UserService.prisma.passwordResets.update({
+                    where: {id: resetRecord.id},
+                    data: {
+                        usedAt: new Date(),
+                    },
+                }),
+            ]);
+
+            await UserService.prisma.passwordResets.updateMany({
+                where: {
+                    userId: resetRecord.userId,
+                    usedAt: null,
+                    id: {not: resetRecord.id},
+                },
+                data: {
+                    usedAt: new Date(),
+                },
+            });
+
+        } catch (error: any) {
+            if (error instanceof NotFoundError) {
+                throw error;
+            }
+
+            console.error("Database error in resetPassword:", error);
+            throw new DatabaseError("Failed to reset password");
+        }
+    }
+
+    async deleteAccount(userId: string): Promise<void> {
+        try {
+            if (!userId) {
+                throw new ValidationError("User ID is required");
+            }
+            const existingUser = await UserService.prisma.users.findUnique({
+                where: {userId},
+                select: {userId: true},
+            });
+
+            if (!existingUser) {
+                throw new NotFoundError("User not found");
+            }
+
+            await UserService.prisma.users.delete({
+                where: {userId}
+            })
+        } catch (error: any) {
+            console.error("Database error in deleteAccount:", error);
+            if (error instanceof ValidationError || error instanceof NotFoundError) {
+                throw error;
+            }
+            throw new DatabaseError("Failed to delete user");
+
+        }
+    }
+
+    async getKeys(userId: string): Promise<ApiKey[] | null> {
+        try {
+            if (!userId) {
+                throw new ValidationError("User ID is required");
+            }
+            return await UserService.prisma.apiKey.findMany({
+                where: {
+                    userId: userId,
+                },
+            });
+        } catch (error: any) {
+            if (error instanceof ValidationError || error instanceof NotFoundError) {
+                throw error;
+            }
+            throw new InternalServerError("Failed to generate comprehensive report");
+        }
+    }
+
+    async updateUser(userId: string, updateData: UpdateUserData): Promise<void> {
+        try {
+            const existingUser = await UserService.prisma.users.findUnique({
+                where: {userId},
+            });
+
+            if (!existingUser) {
+                throw new NotFoundError("User not found");
+            }
+
+            this.validateUpdateData(updateData);
+
+            if (updateData.email && updateData.email !== existingUser.email) {
+                const emailExists = await UserService.prisma.users.findFirst({
+                    where: {
+                        email: updateData.email,
+                        userId: {not: userId}, // Exclude current user
+                    },
+                });
+
+                if (emailExists) {
+                    throw new ConflictError("Email already in use");
+                }
+            }
+
+            await UserService.prisma.users.update({
+                where: {userId},
+                data: {
+                    ...updateData,
+                    updatedAt: new Date(),
+                },
+            });
+        } catch (error: any) {
+            if (
+                error instanceof ValidationError ||
+                error instanceof NotFoundError ||
+                error instanceof ConflictError
+            ) {
+                throw error;
+            }
+            if (error.code === "P2002") {
+                throw new ConflictError("Email already in use");
+            }
+
+            if (error.code === "P2025") {
+                throw new NotFoundError("User not found");
+            }
+
+            console.error("Database error in updateUser:", error);
+            throw new DatabaseError("Failed to update user");
+        }
+    }
+
+    async renameKey(
+        newName: string,
+        keyId: string,
+        userId: string,
+    ): Promise<void> {
+        await this.validateName(newName, userId);
+
         try {
             const updatedKey = await UserService.prisma.apiKey.updateMany({
                 data: {
-                    name: newName.trim()
+                    name: newName.trim(),
                 },
                 where: {
-                    keyLookup: lookupHash,
-                    userId: userId
-                }
+                    id: keyId,
+                    userId: userId,
+                },
             });
 
             // Check if the API key was actually found and updated
             if (updatedKey.count === 0) {
-                throw new ValidationError("API key not found or does not belong to user");
+                throw new ValidationError(
+                    "API key not found or does not belong to user",
+                );
             }
-
         } catch (error: any) {
             console.error("API key rename error:", error);
 
@@ -42,74 +239,75 @@ export class UserService {
             }
 
             // Handle specific Prisma errors
-            if (error.code === 'P2002') { // Unique constraint violation
+            if (error.code === "P2002") {
+                // Unique constraint violation
                 throw new ConflictError("An API key with this name already exists");
             }
 
-            throw new DatabaseError("Failed to rename API key.")
+            throw new DatabaseError("Failed to rename API key.");
         }
-
     }
 
-    async deleteApiKey(apiKey: string, userId: string): Promise<void> {
-        const lookupHash = crypto.createHash("sha256").update(apiKey).digest("hex");
-
+    async deleteApiKey(keyId: string, userId: string): Promise<void> {
         try {
             await UserService.prisma.$transaction(async (tx) => {
                 const keyCount = await tx.apiKey.count({
-                    where: {userId: userId}
+                    where: {userId: userId},
                 });
 
                 if (keyCount <= 1) {
-                    throw new ConflictError("Cannot delete the last API key. You must have at least one key.");
+                    throw new ConflictError(
+                        "Cannot delete the last API key. You must have at least one key.",
+                    );
                 }
 
-                const deletedKey = await tx.apiKey.deleteMany({
+                await tx.apiKey.delete({
                     where: {
-                        userId: userId,
-                        keyLookup: lookupHash
-                    }
+                        id: keyId,
+                        userId: userId, // Double-check ownership
+                    },
                 });
-
-                if (deletedKey.count === 0) {
-                    throw new ValidationError("API key not found or does not belong to user");
-                }
             });
-
         } catch (error: any) {
-            if (error instanceof ConflictError || error instanceof ValidationError) {
+            if (error instanceof ConflictError) {
                 throw error;
             }
-
+            if (error.code === "P2025") {
+                throw new ValidationError(
+                    "API key not found or does not belong to user",
+                );
+            }
             console.error("Deletion error:", error);
             throw new DatabaseError("Failed to delete API key");
         }
     }
 
     async generateNewKey(userId: string, name: string): Promise<void> {
-
         await this.validateName(name, userId);
-        const {apiKey, hashed: hashedApiKey, lookupHash} = await this.generateApiKey("live");
+        const {
+            apiKey,
+            hashed: hashedApiKey,
+            lookupHash,
+        } = await this.generateApiKey("live");
         try {
             await UserService.prisma.apiKey.create({
                 data: {
                     userId,
                     name: name.trim(),
                     keyLookup: lookupHash,
-                    keyHash: hashedApiKey
-                }
+                    keyHash: hashedApiKey,
+                },
             });
 
             try {
                 const user = await UserService.prisma.users.findUnique({
-                    where: {userId}
-                })
+                    where: {userId},
+                });
                 const emailService = new EmailService();
-                await emailService.sendNewApiKey(user!.email, apiKey)
+                await emailService.sendNewApiKey(user!.email, apiKey);
             } catch (error) {
                 console.error("new key email failed:", error);
             }
-
         } catch (error: any) {
             console.error("API key creation error:", error);
 
@@ -130,11 +328,14 @@ export class UserService {
 
         try {
             user = await UserService.prisma.users.findUnique({
-                where: {email: normalizedEmail}
+                where: {email: normalizedEmail},
             });
 
             if (user) {
-                passwordsMatch = await comparePasswords(creds.password, user.passwordHash);
+                passwordsMatch = await comparePasswords(
+                    creds.password,
+                    user.passwordHash,
+                );
             }
         } catch (error: any) {
             console.error("Login error:", error);
@@ -151,24 +352,23 @@ export class UserService {
             lastName: user.lastName,
             email: user.email,
             company: user.company,
-        }
+        };
 
         const tokens = this.generateAuthTokens(sanitizedUser);
         return [sanitizedUser, tokens.accessToken, tokens.refreshToken];
     }
 
-    async signup(newUser: NewUser): Promise<void> {
+    async signup(newUser: NewUser): Promise<[SanitizedUser, string, string]> {
         this.validateSignUpInput(newUser);
-        const normalizedEmail = await this.validateAndNormalizeEmail(newUser.email)
+        const normalizedEmail = await this.validateAndNormalizeEmail(newUser.email);
 
         // generate user id
-        const userId = uuidv4()
+        const userId = uuidv4();
 
-        let hashedPassword
+        let hashedPassword;
         try {
-            hashedPassword = await hashPassword(newUser.password)
+            hashedPassword = await hashPassword(newUser.password);
         } catch (error: any) {
-            // Let ValidationError bubble up to show password requirements
             if (error instanceof ValidationError) {
                 throw error;
             }
@@ -176,7 +376,11 @@ export class UserService {
             throw new DatabaseError("Failed to create account");
         }
 
-        const {apiKey, hashed: hashedApiKey, lookupHash} = await this.generateApiKey("live");
+        const {
+            apiKey,
+            hashed: hashedApiKey,
+            lookupHash,
+        } = await this.generateApiKey("live");
 
         // Insert user + API key into DB
         try {
@@ -197,17 +401,25 @@ export class UserService {
                     },
                 },
             });
+            const sanitizedUser: SanitizedUser = {
+                userId: userId,
+                firstName: newUser.firstName,
+                lastName: newUser.lastName,
+                email: newUser.email,
+                company: newUser.company,
+            };
+
+            const tokens = this.generateAuthTokens(sanitizedUser);
+            try {
+                const emailService = new EmailService();
+                await emailService.sendWelcomeEmail(normalizedEmail, apiKey);
+            } catch (error) {
+                console.error("Welcome email failed:", error);
+            }
+            return [sanitizedUser, tokens.accessToken, tokens.refreshToken];
         } catch (error: any) {
             console.error("Insertion error:", error);
             throw new DatabaseError("Failed to create user");
-        }
-
-        try {
-            const emailService = new EmailService();
-            await emailService.sendWelcomeEmail(normalizedEmail, apiKey);
-            console.log("email sent")
-        } catch (error) {
-            console.error("Welcome email failed:", error);
         }
     }
 
@@ -215,10 +427,7 @@ export class UserService {
     async pricing(): Promise<TierInfo[]> {
         try {
             const tiers = await UserService.prisma.pricingTier.findMany({
-                orderBy: [
-                    {price: 'asc'},
-                    {name: 'asc'}
-                ]
+                orderBy: [{price: "asc"}, {name: "asc"}],
             });
 
             return tiers as TierInfo[]; // Type assertion
@@ -234,6 +443,92 @@ export class UserService {
         });
     }
 
+    async getUserByUserId(userId: string): Promise<SanitizedUser> {
+        if (!userId || userId.trim() == "") {
+            throw new ValidationError("User id is required");
+        }
+        let user;
+        try {
+            user = await UserService.prisma.users.findUnique({
+                where: {userId: userId},
+            });
+            if (!user) {
+                throw new ValidationError("User does not exist");
+            }
+        } catch (error: any) {
+            if (error instanceof ValidationError) {
+                throw error;
+            }
+
+            console.error("Get user by email:", error);
+            throw new DatabaseError("Failed to retrieve user");
+        }
+
+        return {
+            userId: user.userId,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            email: user.email,
+            company: user.company,
+        };
+    }
+
+    async updatePassword(
+        userId: string,
+        oldPassword: string,
+        newPassword: string,
+    ): Promise<void> {
+        let user;
+        try {
+            user = await UserService.prisma.users.findUnique({
+                where: {
+                    userId: userId,
+                },
+            });
+            if (!user) {
+                throw ErrorFactory.userNotFound();
+            }
+
+            // Verify old password
+            const isOldPasswordValid = await bcrypt.compare(
+                oldPassword,
+                user.passwordHash,
+            );
+
+            if (!isOldPasswordValid) {
+                throw new ValidationError("Current password is incorrect");
+            }
+
+            const isSamePassword = await bcrypt.compare(
+                newPassword,
+                user.passwordHash,
+            );
+            if (isSamePassword) {
+                throw new ValidationError(
+                    "New Password must be different from current password",
+                );
+            }
+
+            const hashedPassword = await hashPassword(newPassword);
+            await UserService.prisma.users.update({
+                where: {
+                    userId: userId,
+                },
+                data: {
+                    passwordHash: hashedPassword,
+                    updatedAt: new Date(),
+                },
+            });
+        } catch (error: any) {
+            if (error instanceof ValidationError || error instanceof NotFoundError) {
+                throw error;
+            }
+
+            console.error("Password update error:", error);
+            throw new DatabaseError("Failed to update password");
+        }
+    }
+
     private validateLoginInput(creds: Credentials) {
         if (!creds.email?.trim()) {
             throw new ValidationError("Email is required");
@@ -241,7 +536,8 @@ export class UserService {
         if (!creds.password) {
             throw new ValidationError("Password is required");
         }
-        if (creds.email.length > 254) { // Email length limit
+        if (creds.email.length > 254) {
+            // Email length limit
             throw new ValidationError("Invalid email format");
         }
     }
@@ -278,18 +574,21 @@ export class UserService {
         }
     }
 
-    private async validateAndNormalizeEmail(email: string, excludeUserId?: string): Promise<string> {
+    private async validateAndNormalizeEmail(
+        email: string,
+        excludeUserId?: string,
+    ): Promise<string> {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         const normalizedEmail = email.toLowerCase().trim();
 
         if (!emailRegex.test(normalizedEmail)) {
-            throw ErrorFactory.invalidEmail()
+            throw ErrorFactory.invalidEmail();
         }
 
         try {
             const existingUser = await UserService.prisma.users.findUnique({
-                where: {email: normalizedEmail}
-            })
+                where: {email: normalizedEmail},
+            });
             if (existingUser && existingUser.userId !== excludeUserId) {
                 throw ErrorFactory.emailTaken();
             }
@@ -315,12 +614,70 @@ export class UserService {
         const existingKey = await UserService.prisma.apiKey.findFirst({
             where: {
                 userId,
-                name: name.trim()
-            }
+                name: name.trim(),
+            },
         });
 
         if (existingKey) {
             throw new ConflictError("An API key with this name already exists");
+        }
+    }
+
+    private validateUpdateData(data: UpdateUserData): void {
+        // Validate email format if provided
+        if (data.email !== undefined) {
+            if (typeof data.email !== "string" || data.email.trim() === "") {
+                throw new ValidationError("Email cannot be empty");
+            }
+
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(data.email)) {
+                throw new ValidationError("Invalid email format");
+            }
+        }
+
+        // Validate firstName if provided
+        if (data.firstName !== undefined) {
+            if (typeof data.firstName !== "string" || data.firstName.trim() === "") {
+                throw new ValidationError("First name cannot be empty");
+            }
+
+            if (data.firstName.length > 50) {
+                throw new ValidationError("First name cannot exceed 50 characters");
+            }
+        }
+
+        // Validate lastName if provided
+        if (data.lastName !== undefined) {
+            if (typeof data.lastName !== "string" || data.lastName.trim() === "") {
+                throw new ValidationError("Last name cannot be empty");
+            }
+
+            if (data.lastName.length > 50) {
+                throw new ValidationError("Last name cannot exceed 50 characters");
+            }
+        }
+
+        // Validate company if provided (can be null/undefined)
+        if (data.company !== undefined && data.company !== null) {
+            if (typeof data.company !== "string") {
+                throw new ValidationError("Company must be a string");
+            }
+
+            if (data.company.length > 100) {
+                throw new ValidationError("Company name cannot exceed 100 characters");
+            }
+        }
+
+        // Ensure at least one field is being updated
+        const hasUpdateData = (Object.keys(data) as (keyof UpdateUserData)[]).some(
+            (key) => data[key] !== undefined,
+        );
+
+        if (!hasUpdateData) {
+            throw new ValidationError(
+                "At least one field must be provided for update",
+            );
         }
     }
 

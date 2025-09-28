@@ -10,23 +10,38 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Users {
-  userId       String     @id @default(uuid()) @map("user_id")
-  email        String     @unique
-  passwordHash String     @map("password_hash")
-  firstName    String     @map("first_name")
-  lastName     String     @map("last_name")
-  company      String?
-  createdAt    DateTime   @default(now()) @map("created_at")
-  updatedAt    DateTime   @updatedAt @map("updated_at")
-  ApiKey       ApiKey[]
-  ApiUsage     ApiUsage[]
+  userId         String           @id @default(uuid()) @map("user_id")
+  email          String           @unique
+  passwordHash   String           @map("password_hash")
+  firstName      String           @map("first_name")
+  lastName       String           @map("last_name")
+  company        String?
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+  ApiKey         ApiKey[]
+  ApiUsage       ApiUsage[]
+  passwordResets PasswordResets[]
 
   @@map("users") // maps model to exact table name in DB
+}
+
+model PasswordResets {
+  id        String    @id @default(cuid())
+  userId    String
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user Users @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@map("password_resets")
 }
 
 model ApiKey {

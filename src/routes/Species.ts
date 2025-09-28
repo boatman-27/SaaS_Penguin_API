@@ -12,7 +12,7 @@ router.get("/full", (req, res) =>
     speciesController.getSpeciesInfo(req, res)
 )
 
-router.get("breeding-month", (req, res) =>
+router.get("/breeding-month", (req, res) =>
     speciesController.getSpeciesByBreedingMonth(req, res)
 )
 
@@ -32,11 +32,11 @@ router.get("/status", (req, res) =>
     speciesController.getSpeciesByStatus(req, res)
 )
 
-router.get("min-weight", (req, res) =>
+router.get("/min-weight", (req, res) =>
     speciesController.getSpeciesByMinWeight(req, res)
 )
 
-router.get("max-weight", (req, res) =>
+router.get("/max-weight", (req, res) =>
     speciesController.getSpeciesByMaxWeight(req, res)
 )
 
@@ -44,11 +44,11 @@ router.get("/range-weight", (req, res) =>
     speciesController.getSpeciesByWeightRange(req, res)
 )
 
-router.get("min-population", (req, res) =>
+router.get("/min-population", (req, res) =>
     speciesController.getSpeciesByMinPopulation(req, res)
 )
 
-router.get("max-population", (req, res) =>
+router.get("/max-population", (req, res) =>
     speciesController.getSpeciesByMaxPopulation(req, res)
 )
 
