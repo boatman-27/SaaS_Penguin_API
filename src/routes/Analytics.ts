@@ -1,7 +1,7 @@
 import {Router} from "express";
-import {AnalyticsService} from "../services/AnalyticsService.ts";
-import {AnalyticsController} from "../controllers/AnalyticsController.ts";
-import {requireAuth} from "../middleware/Auth.ts";
+import {AnalyticsService} from "../services/AnalyticsService.js";
+import {AnalyticsController} from "../controllers/AnalyticsController.js";
+import {requireAuth} from "../middleware/Auth.js";
 
 const router = Router();
 const analyticsService = new AnalyticsService();

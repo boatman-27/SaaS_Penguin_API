@@ -1,6 +1,6 @@
 import {PrismaClient} from "../generated/prisma/index.js"
-import {DatabaseError, NotFoundError} from "../types/Error.ts";
-import type {Fact} from "../types/API.ts";
+import {DatabaseError, NotFoundError} from "../types/Error.js";
+import type {Fact} from "../types/API.js";
 
 
 export class FactService {

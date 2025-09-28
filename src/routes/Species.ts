@@ -1,7 +1,7 @@
 import {Router} from "express";
-import {UsageLogger} from "../utils/UsageService.ts";
-import {SpeciesService} from "../services/SpeciesService.ts";
-import {SpeciesController} from "../controllers/SpeciesController.ts";
+import {UsageLogger} from "../utils/UsageService.js";
+import {SpeciesService} from "../services/SpeciesService.js";
+import {SpeciesController} from "../controllers/SpeciesController.js";
 
 const router: Router = Router()
 const speciesService = new SpeciesService();

@@ -1,8 +1,8 @@
 import {Router} from "express";
-import {FactService} from "../services/FactService.ts";
-import {FactController} from "../controllers/FactsController.ts";
-import {UsageLogger} from "../utils/UsageService.ts";
-import {authApiKey} from "../middleware/Auth.ts";
+import {FactService} from "../services/FactService.js";
+import {FactController} from "../controllers/FactsController.js";
+import {UsageLogger} from "../utils/UsageService.js";
+import {authApiKey} from "../middleware/Auth.js";
 
 const router: Router = Router()
 

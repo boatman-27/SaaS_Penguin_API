@@ -1,5 +1,5 @@
 import {PrismaClient} from "../generated/prisma/index.js";
-import {DatabaseError, InternalServerError, NotFoundError, ValidationError,} from "../types/Error.ts";
+import {DatabaseError, InternalServerError, NotFoundError, ValidationError,} from "../types/Error.js";
 import type {
     DailyUsage,
     DashboardData,
@@ -10,7 +10,7 @@ import type {
     KeyUsageStats,
     StatusCodeDistribution,
     TimeRange,
-} from "../types/Analytics.ts";
+} from "../types/Analytics.js";
 
 export class AnalyticsService {
     private static prisma = new PrismaClient();

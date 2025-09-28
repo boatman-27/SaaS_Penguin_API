@@ -1,6 +1,6 @@
 import {PrismaClient} from "../generated/prisma/index.js"
-import {DatabaseError} from "../types/Error.ts";
-import type {Species, SpeciesFilters, SpeciesSummary} from "../types/API.ts";
+import {DatabaseError} from "../types/Error.js";
+import type {Species, SpeciesFilters, SpeciesSummary} from "../types/API.js";
 
 
 export class SpeciesService {

@@ -1,7 +1,7 @@
 import {PrismaClient} from "../generated/prisma/index.js"
 import type {Request, Response} from "express";
 import crypto from "crypto";
-import {AuthenticationError, DatabaseError, ValidationError} from "../types/Error.ts";
+import {AuthenticationError, DatabaseError, ValidationError} from "../types/Error.js";
 
 export class UsageLogger {
     private static prisma = new PrismaClient()

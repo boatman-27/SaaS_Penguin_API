@@ -11,12 +11,12 @@ import {
     InternalServerError,
     NotFoundError,
     ValidationError,
-} from "../types/Error.ts";
-import type {Credentials, NewUser, SanitizedUser, UpdateUserData,} from "../types/User.ts";
-import {comparePasswords, hashPassword} from "../utils/Password.ts";
-import {generateAccessToken, generateRefreshToken} from "../utils/Tokens.ts";
-import {EmailService} from "../utils/EmailService.ts";
-import type {ApiKey, TierInfo} from "../types/API.ts";
+} from "../types/Error.js";
+import type {Credentials, NewUser, SanitizedUser, UpdateUserData,} from "../types/User.js";
+import {comparePasswords, hashPassword} from "../utils/Password.js";
+import {generateAccessToken, generateRefreshToken} from "../utils/Tokens.js";
+import {EmailService} from "../utils/EmailService.js";
+import type {ApiKey, TierInfo} from "../types/API.js";
 
 export class UserService {
     private static prisma = new PrismaClient();
@@ -423,7 +423,7 @@ export class UserService {
         }
     }
 
-    // UserService.ts - Add this method
+    // UserService.js - Add this method
     async pricing(): Promise<TierInfo[]> {
         try {
             const tiers = await UserService.prisma.pricingTier.findMany({

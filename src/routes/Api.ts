@@ -1,12 +1,12 @@
 import {Router} from "express";
-import {UserService} from "../services/UserService.ts";
-import {UserController} from "../controllers/UserController.ts";
-import {FactService} from "../services/FactService.ts";
-import {FactController} from "../controllers/FactsController.ts";
-import {requireAuth} from "../middleware/Auth.ts";
-import {UsageLogger} from "../utils/UsageService.ts";
-import {SpeciesService} from "../services/SpeciesService.ts";
-import {SpeciesController} from "../controllers/SpeciesController.ts";
+import {UserService} from "../services/UserService.js";
+import {UserController} from "../controllers/UserController.js";
+import {FactService} from "../services/FactService.js";
+import {FactController} from "../controllers/FactsController.js";
+import {requireAuth} from "../middleware/Auth.js";
+import {UsageLogger} from "../utils/UsageService.js";
+import {SpeciesService} from "../services/SpeciesService.js";
+import {SpeciesController} from "../controllers/SpeciesController.js";
 
 const router: Router = Router()
 const userService = new UserService();
